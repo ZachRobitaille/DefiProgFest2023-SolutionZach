@@ -58,10 +58,44 @@ class LunarLanderAgent:
 		:return: Action à effectuer dans l'environnement.
 		:rtype: Union[int, np.ndarray]
 		"""
+		# État du lander x: position horizontale  xv: vitesse horizontale
+		x, y, xv, yv, theta, omega = observation[0], observation[1], observation[2], observation[3], observation[4], observation[5]
+		# Initialisation de l'état des moteurs
+		yBooster = 0.
+		xBooster = 0.
+
+		# Si le lander n'est toujours pas atterri
+		if observation[6] == False or observation[7] == False:
+			#Dealing with height
+			if yv < 0:
+				yBooster = np.abs(yv) - (y/7 if y > 0.10 else -0.10)
+		#Dealing with orientation
+		xBooster = np.sin(theta)*2.5 + omega*2.5
+		
+		#Dealing with x position and velocity
+		xBooster -= x*3 + xv*4
+
+
 		env = self.make_env()
-		action = env.action_space.sample()
 		env.close()
-		return action
+
+		action = np.array([yBooster,xBooster])
+		if self.env_config['continuous']:
+			return action
+		else:
+			#Trust me bro
+			if action[0]  > np.abs(action[1]):
+				return 2
+			if y < 0.05:
+				return 2 if yv < -0.1 else 0
+			else:
+				if action[1] < -0.5: return 1
+				elif action[1] > 0.5: return 3
+				else: 
+					if yv > -0.08 and y > 0.15:
+						return 0 
+					else:
+						return 2 if yv < -0.1 else 0
 		
 	def visualise_trajectory(self, seed=None) -> float:
 		"""
@@ -93,7 +127,7 @@ if __name__ == '__main__':
 	import json
 	
 	configs = json.load(open(f"./env_configs.json", "r"))
-	echelon_id: int = 4
+	echelon_id: int = 2
 	echelon_key = [key for key in configs.keys() if key.startswith(f"Echelon {echelon_id}")][0]
 	agent = LunarLanderAgent(configs[echelon_key])
 	cr = agent.visualise_trajectory()
